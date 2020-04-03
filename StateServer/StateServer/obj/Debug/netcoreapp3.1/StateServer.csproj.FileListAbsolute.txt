@@ -1,0 +1,11 @@
+F:\DistributeLockStep2020\StateServer\StateServer\bin\Debug\netcoreapp3.1\StateServer.exe
+F:\DistributeLockStep2020\StateServer\StateServer\bin\Debug\netcoreapp3.1\StateServer.deps.json
+F:\DistributeLockStep2020\StateServer\StateServer\bin\Debug\netcoreapp3.1\StateServer.runtimeconfig.json
+F:\DistributeLockStep2020\StateServer\StateServer\bin\Debug\netcoreapp3.1\StateServer.runtimeconfig.dev.json
+F:\DistributeLockStep2020\StateServer\StateServer\bin\Debug\netcoreapp3.1\StateServer.dll
+F:\DistributeLockStep2020\StateServer\StateServer\bin\Debug\netcoreapp3.1\StateServer.pdb
+F:\DistributeLockStep2020\StateServer\StateServer\obj\Debug\netcoreapp3.1\StateServer.csprojAssemblyReference.cache
+F:\DistributeLockStep2020\StateServer\StateServer\obj\Debug\netcoreapp3.1\StateServer.AssemblyInfoInputs.cache
+F:\DistributeLockStep2020\StateServer\StateServer\obj\Debug\netcoreapp3.1\StateServer.AssemblyInfo.cs
+F:\DistributeLockStep2020\StateServer\StateServer\obj\Debug\netcoreapp3.1\StateServer.dll
+F:\DistributeLockStep2020\StateServer\StateServer\obj\Debug\netcoreapp3.1\StateServer.pdb
