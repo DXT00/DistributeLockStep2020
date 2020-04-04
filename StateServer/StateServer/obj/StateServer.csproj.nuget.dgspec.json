@@ -40,6 +40,16 @@
       },
       "frameworks": {
         "netcoreapp3.1": {
+          "dependencies": {
+            "Google.Protobuf": {
+              "target": "Package",
+              "version": "[3.11.4, )"
+            },
+            "protobuf-net": {
+              "target": "Package",
+              "version": "[2.4.4, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

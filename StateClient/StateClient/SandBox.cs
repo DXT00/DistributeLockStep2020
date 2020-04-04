@@ -36,8 +36,8 @@ namespace StateClient
 
 
             }
-            //s_networkManager.receive_serverData();
-            //s_logicGameManager.update(m_robots);
+            //s_networkManager.receive_server_data();
+          //  s_logicGameManager.update(m_robots);
 
 
         }

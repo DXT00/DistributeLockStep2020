@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Net;
 using System.Net.Sockets;
-using StateClient.Network.Messages;
 namespace StateClient.RobotComponent
 {
     public class NetworkComponent

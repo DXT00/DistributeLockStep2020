@@ -40,7 +40,7 @@ namespace StateClient.Network
             }
         }
 
-        public void receive_serverData()
+        public void receive_server_data()
         {
 
         }
@@ -50,7 +50,7 @@ namespace StateClient.Network
             Log.INFO("tcpSocket sending robots msgs...");
             foreach (Robot robot in robots)
             {
-                robot.m_tcpSocket.send_queueData();
+                robot.m_tcpSocket.send_queue_data();
             }
         }
     }

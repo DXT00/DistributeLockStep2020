@@ -6,8 +6,9 @@ namespace StateServer
 {
     public class Config
     {
-         public const int areaCount = 5;
-         public const int singleAreaSize = 64;
+        public const int areaCount = 5;
+        public const int areaSize = 640;//640*640
+        
 
         /* NetworkManager*/
         public const int numConnectionsMax = 10;

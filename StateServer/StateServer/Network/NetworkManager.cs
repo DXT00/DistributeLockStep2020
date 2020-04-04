@@ -12,7 +12,7 @@ namespace StateServer.Network
 
         static private MapManager m_mapManager = MapManager.get_singleton();
 
-        TCPSocket m_tcpServer;
+        ServerSocket m_tcpServer;
         int m_numConnectionsMax;
         int m_recieveBufferSize;
         IPEndPoint m_ipEndPort;
@@ -21,7 +21,7 @@ namespace StateServer.Network
         {
             m_numConnectionsMax = Config.numConnectionsMax;
             m_recieveBufferSize = Config.receiveBufferSize;
-            m_tcpServer = new TCPSocket(m_numConnectionsMax, m_recieveBufferSize);
+            m_tcpServer = new ServerSocket(m_numConnectionsMax, m_recieveBufferSize);
             IPAddress ip = IPAddress.Parse(Config.ip);
             m_ipEndPort = new IPEndPoint(ip, Config.port);
 

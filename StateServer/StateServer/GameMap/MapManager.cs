@@ -14,7 +14,7 @@ namespace StateServer.GameMap
         private MapManager()
         {
             m_areaAcount = Config.areaCount;
-            m_singleAreaSize = Config.singleAreaSize;
+            m_singleAreaSize = Config.areaSize/Config.areaCount;
 
         }
 
@@ -34,7 +34,7 @@ namespace StateServer.GameMap
             return s_singleton;
         }
 
-        public void process_data()
+        public void judge_areaId(Position position)
         {
 
         }

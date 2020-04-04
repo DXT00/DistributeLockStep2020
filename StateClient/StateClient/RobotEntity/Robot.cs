@@ -7,16 +7,14 @@ namespace StateClient.RobotEntity
 {
     public class Robot
     {
-        public readonly int m_id;
-      //  public NetworkComponent m_networkComponent;
+        public readonly int m_id;//id in Game
         public MapComponent m_mapComponent;
-        public TCPSocket m_tcpSocket;
+        public ClientSocket m_tcpSocket;
 
         public Robot(int id)
         {
             m_id = id;
-            //m_networkComponent = new NetworkComponent(m_id,Config.serverIp, Config.serverPort);
-            m_tcpSocket = new TCPSocket(m_id, Config.serverIp, Config.serverPort);
+            m_tcpSocket = new ClientSocket(m_id, Config.serverIp, Config.serverPort);
         }
     }
 }

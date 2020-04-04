@@ -3,6 +3,9 @@ using System.Net.Sockets;
 using System.Net;
 using System.Threading;
 using System.Text;
+using StateServer.RobotSystem;
+using StateServer.Network.Protobuf;
+using StateServer.RobotEntity;
 
 namespace StateServer.Network.Socket
 {
@@ -12,14 +15,24 @@ namespace StateServer.Network.Socket
     https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.socketasynceventargs?view=netframework-4.8#definition     
          
     */
-    internal class AsyncUserToken
+    public sealed class AsyncUserToken
     {
-       
+        public AsyncUserToken(System.Net.Sockets.Socket socket)
+        {
+            this.Socket = socket;
+        }
+        public AsyncUserToken()
+        {
+            this.Socket = null;
+        }
         public System.Net.Sockets.Socket Socket { get; set; }
+
     }
-    public class TCPSocket
+    public class ServerSocket
     {
         private static Mutex m_mutex = new Mutex();
+        
+        StateServer.RobotSystem.RobotSystem m_robotSystem = StateServer.RobotSystem.RobotSystem.get_singleton();
 
         int m_numConnectionsMax;
         int m_receiveBufSize;
@@ -31,11 +44,11 @@ namespace StateServer.Network.Socket
 
         BufferManager m_bufferManager;//TODO::client过多时，内存预先分配会有问题
 
-        public System.Net.Sockets.Socket m_listenSocket;
+        System.Net.Sockets.Socket m_listenSocket;
 
         int m_numConnectedSocket;
         Semaphore m_numAcceptedClientsMax;
-        public TCPSocket(int numConnectionsMax, int receiveBufSize)
+        public ServerSocket(int numConnectionsMax, int receiveBufSize)
         {
             m_numConnectionsMax = numConnectionsMax;
             m_receiveBufSize = receiveBufSize;
@@ -101,6 +114,7 @@ namespace StateServer.Network.Socket
             if (acceptEventArg == null)
             {
                 acceptEventArg = new SocketAsyncEventArgs();
+                acceptEventArg.UserToken = new AsyncUserToken();
                 acceptEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(acceptEventArgs_completed);
             }
             else
@@ -131,15 +145,19 @@ namespace StateServer.Network.Socket
 
         void process_accept(SocketAsyncEventArgs e)
         {
-            try { 
+            try
+            {
+               
                 SocketAsyncEventArgs readEventArg = m_receiveEventArgsPool.pop();
                 Log.ASSERT("There are no more available sockets to allocate.", readEventArg != null);
                 Log.ASSERT("Client form {0} has disconnected!", e.AcceptSocket.Connected,e.AcceptSocket.RemoteEndPoint.ToString());
 
                 Interlocked.Increment(ref m_numConnectedSocket);
-                Log.INFO("Client connection accepted,There are {0} clients connected to the server", m_numConnectedSocket);
                 ((AsyncUserToken)readEventArg.UserToken).Socket = e.AcceptSocket;
-                
+
+                m_robotSystem.generate_robot(e.AcceptSocket);
+
+                Log.INFO("Client from {0} connection accepted.There are {1} clients connected to the server", e.AcceptSocket.RemoteEndPoint.ToString(), m_numConnectedSocket);            
                 if (!e.AcceptSocket.ReceiveAsync(readEventArg))
                 {
                     process_receive(readEventArg);
@@ -148,8 +166,7 @@ namespace StateServer.Network.Socket
             }
             catch (SocketException ex)
             {
-               AsyncUserToken token = e.UserToken as AsyncUserToken;
-               Log.ERROR("Error when processing data received from {0}:\r\n{1}", token.Socket.RemoteEndPoint, ex.ToString());
+               Log.ERROR("Error when processing data received from {0}:\r\n{1}", e.AcceptSocket.RemoteEndPoint, ex.ToString());
             }
             catch (Exception ex)
             {
@@ -170,21 +187,29 @@ namespace StateServer.Network.Socket
                 if (e.BytesTransferred > 0 )
                 {
                     AsyncUserToken token = e.UserToken as AsyncUserToken;
-                    System.Net.Sockets.Socket clientSocket = token.Socket;
+                    System.Net.Sockets.Socket socket = token.Socket;
+                   
 
                     //判断所有需接收的数据是否已经完成
-                    if (clientSocket.Available == 0)
+                    if (socket.Available == 0)
                     {
                         byte[] data = new byte[e.BytesTransferred];
                         Array.Copy(e.Buffer, e.Offset, data, 0, data.Length);
-                        string info = Encoding.Default.GetString(data);
-                        Log.INFO(" receive from client endPort:{0},{1}", clientSocket.RemoteEndPoint.ToString(), info);
 
+                        //放入对应的robot的queue中
+                        NetworkMsg netMsg = PBSerializer.deserialize<NetworkMsg>(data);
+                        int socketId = m_robotSystem.get_socketToRobotMap()[socket];
+                        Robot robot = m_robotSystem.get_robots()[socketId];
+                        robot.m_clientSocket.dump_receive_queue(netMsg);
+                        //string info = Encoding.Unicode.GetString(data);
+
+
+                        Log.INFO(" receive from client endPort:{0},position.x={1}", socket.RemoteEndPoint.ToString(),netMsg.Position.X);
                         Interlocked.Add(ref m_totalBytesRead, e.BytesTransferred);
                         Log.INFO("The server has read a total of {0} bytes", m_totalBytesRead);
                     }
 
-                    if (!clientSocket.ReceiveAsync(e))
+                    if (!socket.ReceiveAsync(e))
                     {
                         process_receive(e);
                     }
@@ -216,6 +241,8 @@ namespace StateServer.Network.Socket
             try
             {
                 token.Socket.Shutdown(SocketShutdown.Send);
+                //删除socket对应的robot
+                m_robotSystem.remove_robot(token.Socket);
             }
             catch (Exception)
             {

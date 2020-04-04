@@ -1,0 +1,16 @@
+﻿syntax = "proto3";
+
+message NetworkMsg{
+	ClientInfo clientInfo=1;
+	Position position=2;
+
+}
+
+message ClientInfo{
+	int32 robotId=1;
+}
+message Position{
+	int32 x=1;
+	int32 y=2;
+	int32 z=3;
+}

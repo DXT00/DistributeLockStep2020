@@ -9,3 +9,10 @@ F:\DistributeLockStep2020\StateClient\StateClient\obj\Debug\netcoreapp3.1\StateC
 F:\DistributeLockStep2020\StateClient\StateClient\obj\Debug\netcoreapp3.1\StateClient.AssemblyInfo.cs
 F:\DistributeLockStep2020\StateClient\StateClient\obj\Debug\netcoreapp3.1\StateClient.dll
 F:\DistributeLockStep2020\StateClient\StateClient\obj\Debug\netcoreapp3.1\StateClient.pdb
+F:\DistributeLockStep2020\StateClient\StateClient\bin\Debug\netcoreapp3.1\protobuf-net.dll
+F:\DistributeLockStep2020\StateClient\StateClient\bin\Debug\netcoreapp3.1\System.ServiceModel.Primitives.dll
+F:\DistributeLockStep2020\StateClient\StateClient\bin\Debug\netcoreapp3.1\System.ServiceModel.dll
+F:\DistributeLockStep2020\StateClient\StateClient\bin\Debug\netcoreapp3.1\runtimes\unix\lib\netstandard2.0\System.Private.ServiceModel.dll
+F:\DistributeLockStep2020\StateClient\StateClient\bin\Debug\netcoreapp3.1\runtimes\win\lib\netstandard2.0\System.Private.ServiceModel.dll
+F:\DistributeLockStep2020\StateClient\StateClient\obj\Debug\netcoreapp3.1\StateClient.csproj.CopyComplete
+F:\DistributeLockStep2020\StateClient\StateClient\bin\Debug\netcoreapp3.1\Google.Protobuf.dll
