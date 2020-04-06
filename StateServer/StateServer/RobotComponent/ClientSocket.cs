@@ -6,11 +6,11 @@ namespace StateServer.RobotComponent
 {
     public class ClientSocket
     {
-        private Socket m_socket;
+        public Socket m_socket { private set; get; }
         private int m_socketId;
         private EndPoint m_remoteEndPort;
-        Queue<NetworkMsg> m_sendQueue;
-        Queue<NetworkMsg> m_receivedQueue;
+        private Queue<NetworkMsg> m_sendQueue;
+        private Queue<NetworkMsg> m_receivedQueue;
         public ClientSocket(int socketId,Socket socket)
         {
             m_socketId = socketId;

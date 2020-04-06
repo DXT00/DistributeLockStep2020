@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using StateClient.RobotEntity;
-namespace StateClient.RobotSystem
+namespace StateClient.RobotsSystem
 {
     public class RobotSystem
     {

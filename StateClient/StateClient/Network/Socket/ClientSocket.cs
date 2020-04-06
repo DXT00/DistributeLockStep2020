@@ -20,10 +20,11 @@ namespace StateClient.Network.Socket
 
         }
         public System.Net.Sockets.Socket Socket { get; set; }
-      
+
     }
     public class ClientSocket
     {
+        static private readonly object s_locker = new object();
         int m_robotId;//id in Game
         int m_socketId;// socket id to server
         IPEndPoint m_hostIpEndPort;
@@ -31,25 +32,26 @@ namespace StateClient.Network.Socket
         public SocketAsyncEventArgs m_connectEventArg;
         public SocketAsyncEventArgs m_sendEventArg;
         public SocketAsyncEventArgs m_receiveEventArg;
-       
+
         public bool m_isConnected;
         Queue<NetworkMsg> m_sendQueue;
         Queue<NetworkMsg> m_receivedQueue;
-        
+
 
         //AutoResetEvent -- Represents a thread synchronization event that, when signaled, resets automatically
         //after releasing a single waiting thread. This class cannot be inherited.
         private AutoResetEvent m_autoConnectSignal;
         private AutoResetEvent m_autoSendEvent;
-        private AutoResetEvent m_autoReceiveEvent;
+        //  private AutoResetEvent m_autoReceiveEvent;
 
         int m_sendBufferSize;
         int m_receiveBufferSize;
 
 
-        public ClientSocket(int id, string hostIp, int hostPort)
+        public ClientSocket(int id, int socketId, string hostIp, int hostPort)
         {
             m_robotId = id;
+            m_socketId = socketId;
             m_hostIpEndPort = new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
             m_socket = new System.Net.Sockets.Socket(m_hostIpEndPort.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             m_sendQueue = new Queue<NetworkMsg>();
@@ -59,25 +61,32 @@ namespace StateClient.Network.Socket
 
             m_autoConnectSignal = new AutoResetEvent(false);
             m_autoSendEvent = new AutoResetEvent(false);
-            m_autoReceiveEvent = new AutoResetEvent(false);
+            // m_autoReceiveEvent = new AutoResetEvent(false);
 
             m_connectEventArg = new SocketAsyncEventArgs();
-            m_connectEventArg.UserToken =new AsyncUserToken(m_socket);
+            m_connectEventArg.UserToken = new AsyncUserToken(m_socket);
             m_connectEventArg.RemoteEndPoint = m_hostIpEndPort;
-            m_connectEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(process_connect);
+            m_connectEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(handler_connect);
 
             m_sendEventArg = new SocketAsyncEventArgs();
             m_sendEventArg.UserToken = new AsyncUserToken(m_socket);
             m_sendEventArg.RemoteEndPoint = m_hostIpEndPort;
-            m_sendEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(process_send);
+            m_sendEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(handler_send);
 
             m_receiveEventArg = new SocketAsyncEventArgs();
             m_receiveEventArg.UserToken = new AsyncUserToken(m_socket);
             m_receiveEventArg.RemoteEndPoint = m_hostIpEndPort;
-            m_receiveEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(process_receive);
+            byte[] receiveBuffer = new byte[m_receiveBufferSize];
+            m_receiveEventArg.SetBuffer(receiveBuffer, 0, receiveBuffer.Length);
+            m_receiveEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(handler_receive);
 
             m_isConnected = false;
 
+        }
+        //从server获取socketId
+        public void set_socketId(int socketId)
+        {
+            m_socketId = socketId;
         }
         public void connect()
         {
@@ -85,13 +94,17 @@ namespace StateClient.Network.Socket
             m_autoConnectSignal.WaitOne();
             Log.ASSERT("connect failed!", m_connectEventArg.SocketError == SocketError.Success);
             m_isConnected = true;
+            if (!m_socket.ReceiveAsync(m_receiveEventArg))
+            {
+                process_receive(m_receiveEventArg);
+            }
         }
-        private void process_connect(object sender, SocketAsyncEventArgs e)
+        private void handler_connect(object sender, SocketAsyncEventArgs e)
         {
             m_autoConnectSignal.Set();
             Log.INFO("robotId {0} has connected to server {1}!", m_robotId, m_hostIpEndPort.ToString());
         }
-        private void process_send(object sender, SocketAsyncEventArgs e)
+        private void handler_send(object sender, SocketAsyncEventArgs e)
         {
             //m_autoSendEvent.Set();
             if (e.SocketError == SocketError.Success)
@@ -100,37 +113,87 @@ namespace StateClient.Network.Socket
             else
                 Log.ERROR(" msg {0} bytes sending failed!", e.BytesTransferred);
         }
-        private void process_receive(object sender, SocketAsyncEventArgs e)
+        private void handler_receive(object sender, SocketAsyncEventArgs e)
         {
-            m_autoReceiveEvent.Set();
-            if (e.SocketError == SocketError.Success)
-                Log.INFO(" receive {0} bytes  done!", e.BytesTransferred);
-            else
-                Log.ERROR("receive failed");
+            process_receive(e);
+        }
+        private void process_receive(SocketAsyncEventArgs e)
+        {
+            lock (s_locker)
+            {
+                if (e.SocketError == SocketError.Success)
+                {
+                    //if (e.BytesTransferred > 0)
+                    {
+                        AsyncUserToken token = e.UserToken as AsyncUserToken;
+                        System.Net.Sockets.Socket socket = token.Socket;
+
+
+                        //判断所有需接收的数据是否已经完成
+                        if (socket.Available == 0)
+                        {
+                            byte[] packedData = new byte[e.BytesTransferred];
+                            Array.Copy(e.Buffer, e.Offset, packedData, 0, packedData.Length);
+                            int packedDataOffset = 0;
+
+                            while (packedDataOffset < e.BytesTransferred)
+                            {
+                                byte[] lengthData = new byte[4];
+                                Array.Copy(packedData, packedDataOffset, lengthData, 0, 4);
+                                packedDataOffset += 4;
+                                int length = BitConverter.ToInt32(lengthData, 0);
+
+                                byte[] msgData = new byte[length];
+                                Array.Copy(packedData, packedDataOffset, msgData, 0, msgData.Length);
+                                //放入对应的robot的queue中
+                                NetworkMsg netMsg = PBSerializer.deserialize<NetworkMsg>(msgData);
+                                dump_receive_queue(netMsg);
+                                packedDataOffset += msgData.Length;
+                            }
+
+                        }
+
+                        else if (!socket.ReceiveAsync(e))
+                        {
+                            process_receive(e);
+                        }
+
+                    }
+
+                }
+                else
+                {
+                    Log.ERROR("The connection to the server is broken!");
+                }
+            }
         }
 
-        public void receive_server_data(NetworkComponent comp)
-        {
-            // SocketAsyncEventArgs receiveEventArgs = networkComponent.m_readWriteEventArg;
-        }
+
 
         public void send_queue_data()
         {
-            string msg = $"client {m_robotId} sending msg..";
-            NetworkMsg netMsg = new NetworkMsg();
-            Position pos = new Position();
-            pos.X = 1;
-            pos.Y = 2;
-            pos.Z = 3;
-            netMsg.Position = pos;
-            netMsg.ClientInfo = new ClientInfo();
-            netMsg.ClientInfo.RobotId = m_robotId;
-           
 
-            byte[] sendBuffer = PBSerializer.serialize(netMsg);
-            m_sendEventArg.SetBuffer(sendBuffer, 0, sendBuffer.Length);
-            m_socket.SendAsync(m_sendEventArg);
+            while (m_sendQueue.Count > 0)
+            {
+                NetworkMsg msg = m_sendQueue.Dequeue();
+                byte[] data = PBSerializer.serialize(msg);
+                byte[] length = new byte[4];
+                length = BitConverter.GetBytes(data.Length);
 
+                byte[] packedData = new byte[4 + data.Length];
+                Buffer.BlockCopy(length, 0, packedData, 0, 4);
+                Buffer.BlockCopy(data, 0, packedData, 4, data.Length);
+                m_sendEventArg.SetBuffer(packedData, 0, packedData.Length);
+                m_socket.SendAsync(m_sendEventArg);
+                Log.INFO("client {0} send sucess!", m_robotId);
+
+            }
+
+            //bool willRaiseEvent = m_socket.ReceiveAsync(m_receiveEventArg);
+            //if (!willRaiseEvent)
+            //{
+            //    process_receive(m_receiveEventArg);
+            //}
 
             //m_autoSendEvent.WaitOne();
             //if (!)//投递发送请求，这个函数有可能同步发送出去，这时返回false，并且不会引发SocketAsyncEventArgs.Completed事件
@@ -139,7 +202,6 @@ namespace StateClient.Network.Socket
             //    process_send(m_socket, m_sendEventArg);
             //}
 
-            Log.INFO("client {0} send sucess!", m_robotId);
         }
 
         public void close_socket()

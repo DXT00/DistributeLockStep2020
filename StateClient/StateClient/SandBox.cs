@@ -2,20 +2,22 @@
 using System.Collections.Generic;
 using StateClient.Network;
 using StateClient.RobotEntity;
+using StateClient.RobotsSystem;
 using StateClient.LogicGame;
 namespace StateClient
 {
     public class SandBox
     {
-        static StateClient.RobotSystem.RobotSystem s_robotSystem = StateClient.RobotSystem.RobotSystem.get_singleton();
+        static RobotSystem s_robotSystem = RobotSystem.get_singleton();
         static NetworkManager s_networkManager = NetworkManager.get_singleton();
         static LogicManager s_logicGameManager = LogicManager.get_singleton();
         List<Robot> m_robots;
-        string input;
+        bool m_isGameStart;
         public SandBox()
         {
             s_robotSystem.generate_robots(Config.numRobotsCreate);
             m_robots = s_robotSystem.get_robots();
+            m_isGameStart = false;
         }
 
         public void init()
@@ -25,23 +27,37 @@ namespace StateClient
         public void update()
         {
 
-            Console.Write(">");
-            input = Console.ReadLine();
-            switch (input)
-            {
-                case "s":
-                    s_networkManager.send_robotsData(m_robots);
-                    break;
-               
 
 
-            }
-            //s_networkManager.receive_server_data();
-          //  s_logicGameManager.update(m_robots);
+            //Console.Write(">");
+            //input = Console.ReadLine();
+            //switch (input)
+            //{
+            //    case "start":
+            //        start_game();
+            //        break;
+
+
+
+            //}
+
+            //更新每个Robot数据
+            s_networkManager.receive_server_data(m_robots);
+            if (m_isGameStart)
+                s_logicGameManager.update(m_robots);
+            //发送每个Robot新的操作数据
+          //  s_networkManager.send_robots_data(m_robots);
+
 
 
         }
 
+        public void start_game()
+        {
+            Log.ASSERT("there is no robot in Game", m_robots.Count > 0);
+            s_networkManager.send_start_game(m_robots[0]);
+            m_isGameStart = true;
+        }
 
 
     }

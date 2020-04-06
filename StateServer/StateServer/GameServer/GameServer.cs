@@ -11,14 +11,15 @@ namespace StateServer
         static private GameServer s_singleton = null;
         private static readonly object s_locker = new object();
 
-        static private NetworkManager m_networkManager = NetworkManager.get_singleton();
-        static private LogicManager m_logicManager = LogicManager.get_singleton();
-
+        static private NetworkManager s_networkManager = NetworkManager.get_singleton();
+        static private LogicManager s_logicManager = LogicManager.get_singleton();
+        static public bool s_isGameStart = false;
         private GameServer()
-        {       
-           
+        {
+
         }
-        public static GameServer get_singleton(){
+        public static GameServer get_singleton()
+        {
             if (s_singleton == null)
             {
                 lock (s_locker)
@@ -29,19 +30,29 @@ namespace StateServer
                     }
                 }
             }
-            
+
             return s_singleton;
-          }
+        }
         public void start()
         {
-            m_networkManager.start_tcpServer();
+            s_networkManager.start_tcpServer();
         }
         public void update()
         {
-            m_networkManager.receive_data();
-            m_logicManager.run();
-            m_networkManager.send_data();
-
+            //reveive接收游戏开始消息
+            s_networkManager.receive_robots_data();
+            if (s_isGameStart)
+            {
+                s_logicManager.run();
+                //要等所有clients都连接完才开始发送
+                s_networkManager.send_robots_data();
+            }
+        }
+    
+    
+        public void stop()
+        {
+            s_networkManager.stop_tcpServer();
         }
     }
 }

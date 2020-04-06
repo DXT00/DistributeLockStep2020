@@ -1,16 +1,27 @@
 ﻿syntax = "proto3";
 
+enum Type{
+	CONNECTED_ID = 0;//只返回socketId，ClientInfo中
+	START_GAME   = 1;
+	ROBOTS_DATA  = 2;
+}
+
 message NetworkMsg{
+	Type msgType = 1;
+	int32 socketId = 2;
+	repeated RobotData robotData = 3;	
+}
+message RobotData{
 	ClientInfo clientInfo=1;
 	Position position=2;
-
 }
 
 message ClientInfo{
-	int32 robotId=1;
+	int32 robotSocketId=1;
 }
 message Position{
-	int32 x=1;
-	int32 y=2;
-	int32 z=3;
+	uint32 x=1;
+	uint32 y=2;
+	uint32 z=3;
 }
+

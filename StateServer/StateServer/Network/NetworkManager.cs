@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Net;
 using StateServer.GameMap;
 using StateServer.Network.Socket;
+using StateServer.RobotEntity;
+using StateServer.RobotsSystem;
+
 namespace StateServer.Network
 {
     public sealed class NetworkManager
@@ -26,7 +29,7 @@ namespace StateServer.Network
             m_ipEndPort = new IPEndPoint(ip, Config.port);
 
         }
-
+       
         public static NetworkManager get_singleton()
         {
             if (s_singleton == null)
@@ -53,13 +56,53 @@ namespace StateServer.Network
         {
             m_tcpServer.stop();
         }
-        public void receive_data()
+        //更新robot数组信息
+        public void receive_robots_data()
         {
+            List<Robot> robots = RobotSystem.get_singleton().get_robots();
+            foreach(Robot robot in robots)
+            {
+                if (robot == null) continue;//断开连接时会使得robot = null
+                Queue<NetworkMsg> receiveQue = robot.m_clientSocket.load_receive_queue();
+                while(receiveQue.Count > 0){
+                    NetworkMsg msg = receiveQue.Dequeue();
+                    if (msg.MsgType == Type.StartGame)
+                    {
+                        Log.INFO("receivesd START msg from client {0}", robot.m_socketId);
+                        GameServer.s_isGameStart = true;
+                    }
+                    else if (msg.MsgType == Type.RobotsData)
+                    {
+                        Log.INFO("receivesd ROBOT_DATA msg from client {0}", robot.m_socketId);
 
+                        if (msg.RobotData.Count > 0)
+                        {
+                            robot.m_mapComponent.m_pos.X = msg.RobotData[0].Position.X;
+                            robot.m_mapComponent.m_pos.Y = msg.RobotData[0].Position.Y;
+                        }
+                        
+                    }
+                   
+                }
+            }
         }
-        public void send_data()
+        //发送处理完的所有的robot的信息
+        public void send_robots_data()
         {
-
+            List<Robot> robots = RobotSystem.get_singleton().get_robots();
+            lock (robots)
+            {
+                foreach (Robot robot in robots)
+                {
+                    Queue<NetworkMsg> sendQue = robot.m_clientSocket.load_send_queue();
+                    while (sendQue.Count > 0)
+                    {
+                        NetworkMsg msg = sendQue.Dequeue();
+                        m_tcpServer.send_networkMessage(msg, robot.m_clientSocket.m_socket);
+                    }
+                }
+            }
+            
         }
 
     }
