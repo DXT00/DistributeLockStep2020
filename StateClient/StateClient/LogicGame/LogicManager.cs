@@ -44,7 +44,8 @@ namespace StateClient.LogicGame
         {
             foreach(Robot robot in robots)
             {
-                play_game(robot);
+                if (robot.m_clientSocket.m_isConnected)
+                    play_game(robot);
             }
         }
 
@@ -76,11 +77,11 @@ namespace StateClient.LogicGame
             //发送位置消息给server
             NetworkMsg msg = new NetworkMsg();
             msg.MsgType = Type.RobotsData;
-            msg.SocketId = robot.m_socketId;
+            msg.SocketId = robot.m_clientSocket.m_socketId;
             RobotData robotData = new RobotData();
             robotData.Position = pos;
             robotData.ClientInfo = new ClientInfo();
-            robotData.ClientInfo.RobotSocketId = robot.m_socketId;
+            robotData.ClientInfo.RobotSocketId = robot.m_clientSocket.m_socketId;
 
             robot.m_clientSocket.dump_send_queue(msg);
         }

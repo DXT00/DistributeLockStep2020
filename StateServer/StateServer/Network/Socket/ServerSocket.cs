@@ -6,6 +6,8 @@ using System.Text;
 using StateServer.Network.Protobuf;
 using StateServer.RobotEntity;
 using StateServer.RobotsSystem;
+using System.Collections.Generic;
+
 namespace StateServer.Network.Socket
 {
     /*
@@ -19,19 +21,24 @@ namespace StateServer.Network.Socket
         public AsyncUserToken(System.Net.Sockets.Socket socket)
         {
             this.Socket = socket;
+            this.Buffer = new List<byte>();
         }
         public AsyncUserToken()
         {
-            this.Socket = null;
+            this.Buffer = new List<byte>();
         }
+        /// 通信SOKET  
         public System.Net.Sockets.Socket Socket { get; set; }
+        /// 数据缓存区
+        public List<byte> Buffer { get; set; }
+
 
     }
     public class ServerSocket
     {
         private static Mutex m_mutex = new Mutex();
-        
-        RobotSystem m_robotSystem =RobotSystem.get_singleton();
+
+        RobotSystem m_robotSystem = RobotSystem.get_singleton();
 
         int m_numConnectionsMax;
         int m_receiveBufSize;
@@ -124,7 +131,7 @@ namespace StateServer.Network.Socket
                 acceptEventArg.AcceptSocket = null;
             }
             m_numAcceptedClientsMax.WaitOne();
-           //return false if the I/O operation completed synchronously.
+            //return false if the I/O operation completed synchronously.
             if (!m_listenSocket.AcceptAsync(acceptEventArg))
             {
                 process_accept(acceptEventArg);
@@ -138,7 +145,7 @@ namespace StateServer.Network.Socket
             sendEventArgs.UserToken = new AsyncUserToken();
             //if (sendEventArgs != null)
             {
-                sendEventArgs.UserToken = socket;
+                ((AsyncUserToken)sendEventArgs.UserToken).Socket = socket;
                 byte[] data = PBSerializer.serialize(msg);
                 byte[] length = new byte[4];
                 length = BitConverter.GetBytes(data.Length);
@@ -154,16 +161,16 @@ namespace StateServer.Network.Socket
             //    m_waitSendEvent.WaitOne();
             //    send_networkMessage(msg, socket);
             //}
-            
+
         }
-       
+
         private void acceptEventArgs_completed(object sender, SocketAsyncEventArgs e)
         {
             try
             {
                 process_accept(e);
             }
-            catch(Exception exp)
+            catch (Exception exp)
             {
                 Log.ERROR("Accept client {0} error, message: {1}", e.AcceptSocket, exp.Message);
             }
@@ -172,10 +179,10 @@ namespace StateServer.Network.Socket
         void process_accept(SocketAsyncEventArgs e)
         {
             try
-            {           
+            {
                 SocketAsyncEventArgs readEventArg = m_receiveEventArgsPool.pop();
                 Log.ASSERT("There are no more available sockets to allocate.", readEventArg != null);
-                Log.ASSERT("Client form {0} has disconnected!", e.AcceptSocket.Connected,e.AcceptSocket.RemoteEndPoint.ToString());
+                Log.ASSERT("Client form {0} has disconnected!", e.AcceptSocket.Connected, e.AcceptSocket.RemoteEndPoint.ToString());
 
                 Interlocked.Increment(ref m_numConnectedSocket);
                 ((AsyncUserToken)readEventArg.UserToken).Socket = e.AcceptSocket;
@@ -183,71 +190,102 @@ namespace StateServer.Network.Socket
                 //产生Robot，并返回socketid 到client
                 m_robotSystem.generate_robot(e.AcceptSocket);
 
-                Log.INFO("Client from {0} connection accepted.There are {1} clients connected to the server", e.AcceptSocket.RemoteEndPoint.ToString(), m_numConnectedSocket);            
+                Log.INFO("Client from {0} connection accepted.There are {1} clients connected to the server", e.AcceptSocket.RemoteEndPoint.ToString(), m_numConnectedSocket);
                 if (!e.AcceptSocket.ReceiveAsync(readEventArg))
                 {
                     process_receive(readEventArg);
                 }
-                
+
             }
             catch (SocketException ex)
             {
-               Log.ERROR("Error when processing data received from {0}:\r\n{1}", e.AcceptSocket.RemoteEndPoint, ex.ToString());
+                Log.ERROR("Error when processing data received from {0}:\r\n{1}", e.AcceptSocket.RemoteEndPoint, ex.ToString());
             }
             catch (Exception ex)
             {
                 Log.ERROR(ex.ToString());
             }
-            start_accept(e);        
+            start_accept(e);
         }
+        /// 接收到客户端的数据事件 
         private void process_receive(SocketAsyncEventArgs e)
         {
             // check if the remote host closed the connection
-            if ( e.SocketError == SocketError.Success)
+            if (e.SocketError == SocketError.Success && e.BytesTransferred > 0)
             {
-                if (e.BytesTransferred > 0 )
+
+                AsyncUserToken token = e.UserToken as AsyncUserToken;
+                System.Net.Sockets.Socket socket = token.Socket;
+
+
+
+                //放入对应的robot的queue中
+                int socketId = m_robotSystem.get_socketToRobotMap()[socket];
+                Robot robot = m_robotSystem.get_robots()[socketId];
+
+
+
+
+                byte[] data = new byte[e.BytesTransferred];
+                Array.Copy(e.Buffer, e.Offset, data, 0, data.Length);
+                lock (token.Buffer)
                 {
-                    AsyncUserToken token = e.UserToken as AsyncUserToken;
-                    System.Net.Sockets.Socket socket = token.Socket;
-                   
-
-                    //判断所有需接收的数据是否已经完成
-                    if (socket.Available == 0)
-                    {
-                        byte[] packedData = new byte[e.BytesTransferred];
-                        Array.Copy(e.Buffer, e.Offset, packedData, 0, packedData.Length);
-
-                        //放入对应的robot的queue中
-                        int socketId = m_robotSystem.get_socketToRobotMap()[socket];
-                        Robot robot = m_robotSystem.get_robots()[socketId];
-                    
-                        int packedDataOffset = 0;
-
-                        while (packedDataOffset < e.BytesTransferred)
-                        {
-                            byte[] lengthData = new byte[4];
-                            Array.Copy(packedData, packedDataOffset, lengthData, 0, 4);
-                            packedDataOffset += 4;
-                            int length = BitConverter.ToInt32(lengthData, 0);
-
-                            byte[] msgData = new byte[length];
-                            Array.Copy(packedData, packedDataOffset, msgData, 0, msgData.Length);
-                            //放入对应的robot的queue中
-                            NetworkMsg netMsg = PBSerializer.deserialize<NetworkMsg>(msgData);
-                            robot.m_clientSocket.dump_receive_queue(netMsg);
-                            packedDataOffset += msgData.Length;
-                        }
-
-                        Log.INFO(" receive from client endPort:{0}", socket.RemoteEndPoint.ToString());
-                        Interlocked.Add(ref m_totalBytesRead, e.BytesTransferred);
-                        Log.INFO("The server has read a total of {0} bytes", m_totalBytesRead);
-                    }
-
-                    if (!socket.ReceiveAsync(e))
-                    {
-                        process_receive(e);
-                    }
+                    token.Buffer.AddRange(data);
                 }
+
+
+                do// (packedDataOffset < e.BytesTransferred)
+                {
+                    byte[] lengthByte = token.Buffer.GetRange(0, 4).ToArray();
+
+                    int length = BitConverter.ToInt32(lengthByte, 0);
+
+                    if (length > token.Buffer.Count - 4)
+                        break;
+
+                    byte[] msgData = token.Buffer.GetRange(4, length).ToArray();
+                    lock (token.Buffer)
+                    {
+                        token.Buffer.RemoveRange(0, length + 4);
+                    }
+                    //放入对应的robot的queue中
+                    NetworkMsg netMsg = PBSerializer.deserialize<NetworkMsg>(msgData);
+                    robot.m_clientSocket.dump_receive_queue(netMsg);
+
+
+
+                } while (token.Buffer.Count > 4);
+
+
+                Log.INFO(" receive from client endPort:{0}", socket.RemoteEndPoint.ToString());
+                Interlocked.Add(ref m_totalBytesRead, e.BytesTransferred);
+                Log.INFO("The server has read a total of {0} bytes", m_totalBytesRead);
+
+                //int packedDataOffset = 0;
+
+                //while (packedDataOffset < e.BytesTransferred)
+                //{
+                //    byte[] lengthData = new byte[4];
+                //    Array.Copy(packedData, packedDataOffset, lengthData, 0, 4);
+                //    packedDataOffset += 4;
+                //    int length = BitConverter.ToInt32(lengthData, 0);
+
+                //    byte[] msgData = new byte[length];
+                //    Array.Copy(packedData, packedDataOffset, msgData, 0, msgData.Length);
+                //    //放入对应的robot的queue中
+                //    NetworkMsg netMsg = PBSerializer.deserialize<NetworkMsg>(msgData);
+                //    robot.m_clientSocket.dump_receive_queue(netMsg);
+                //    packedDataOffset += msgData.Length;
+                //}
+
+
+
+
+                if (!socket.ReceiveAsync(e))
+                {
+                    process_receive(e);
+                }
+
 
             }
             else
@@ -260,12 +298,13 @@ namespace StateServer.Network.Socket
 
             if (e.SocketError == SocketError.Success)
             {
-              
+
                 m_sendEventArgsPool.push(e);
                 m_waitSendEvent.Set();
             }
             else
-            {   AsyncUserToken token = (AsyncUserToken)e.UserToken;
+            {
+                AsyncUserToken token = (AsyncUserToken)e.UserToken;
                 Log.ERROR("sending msg error! client endPort:{0}", token.Socket.RemoteEndPoint.ToString());
             }
 
@@ -277,6 +316,7 @@ namespace StateServer.Network.Socket
             try
             {
                 token.Socket.Shutdown(SocketShutdown.Send);
+                token.Buffer.Clear();
                 //删除socket对应的robot
                 m_robotSystem.remove_robot(token.Socket);
                 //TODO:删除MapManager对应areaList里的robotId;

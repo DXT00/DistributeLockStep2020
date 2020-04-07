@@ -38,6 +38,11 @@ namespace StateServer.LogicGame
             s_mapManager.update();
             
             m_frameNum++;
+
+            if(m_frameNum == Config.totalFrameNum)
+            {
+                GameServer.get_singleton().stop();
+            }
         }
 
     }

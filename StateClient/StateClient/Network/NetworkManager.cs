@@ -65,10 +65,9 @@ namespace StateClient.Network
             }
            
         }
-
         public void send_robots_data(List<Robot> robots)
         {
-            Log.INFO("tcpSocket sending robots msgs...");
+            //Log.INFO("tcpSocket sending robots msgs...");
             foreach (Robot robot in robots)
             {
                 robot.m_clientSocket.send_queue_data();
@@ -89,19 +88,20 @@ namespace StateClient.Network
         {
 
             robot.m_clientSocket.set_socketId(msg.SocketId);
-            Log.INFO("client {0} receivesd CONNECTED msg from server", robot.m_socketId);
+            robot.m_clientSocket.m_isConnected = true;
+            Log.INFO("client {0} receivesd CONNECTED msg from server", robot.m_clientSocket.m_socketId);
 
         }
 
         private void on_robotData_msg(NetworkMsg msg, Robot robot)
         {
-            Log.INFO("client {0} receivesd ROBOT_DATA msg from server", robot.m_socketId);
+            Log.INFO("client {0} receivesd ROBOT_DATA msg from server", robot.m_clientSocket.m_socketId);
 
             robot.m_robotGame.reset();
 
             foreach (RobotData robotData in msg.RobotData)
             {
-                if (robotData.ClientInfo.RobotSocketId == robot.m_socketId)
+                if (robotData.ClientInfo.RobotSocketId == robot.m_clientSocket.m_socketId)
                 {
                     robot.m_mapComponent.m_pos.X = robotData.Position.X;
                     robot.m_mapComponent.m_pos.Y = robotData.Position.Y;

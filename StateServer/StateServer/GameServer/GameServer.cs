@@ -46,7 +46,7 @@ namespace StateServer
                 s_logicManager.run();
                 //要等所有clients都连接完才开始发送
                 s_networkManager.send_robots_data();
-            }
+            }  
         }
     
     

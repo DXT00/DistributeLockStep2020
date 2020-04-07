@@ -47,6 +47,7 @@ namespace StateServer.GameMap
             List<Robot> robots = RobotSystem.get_singleton().get_robots();
             foreach (Robot robot in robots)
             {
+                if (robot == null) continue;
                 int areaIdOld = robot.m_mapComponent.m_areaId;
                 int areaIdNew = calculate_robot_area(robot);
                 robot.m_mapComponent.m_areaId = areaIdNew;
@@ -54,6 +55,7 @@ namespace StateServer.GameMap
             }
             foreach (Robot robot in robots)
             {
+                if (robot == null) continue;
                 load_nearby_area_msg(robot,robots);
             }
 

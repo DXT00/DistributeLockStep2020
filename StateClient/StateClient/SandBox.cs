@@ -4,6 +4,8 @@ using StateClient.Network;
 using StateClient.RobotEntity;
 using StateClient.RobotsSystem;
 using StateClient.LogicGame;
+using System.Timers;
+
 namespace StateClient
 {
     public class SandBox
@@ -15,6 +17,14 @@ namespace StateClient
         bool m_isGameStart;
         public SandBox()
         {
+            //Robot 输入操作定时器，robot每隔timer.Interval产生一次操作
+            Timer timer = new Timer();
+            timer.Enabled = true;
+            timer.Interval = 1.0 / Config.fps * 1000;
+            timer.Start();
+            timer.Elapsed += new ElapsedEventHandler(sandbox_update);
+
+
             s_robotSystem.generate_robots(Config.numRobotsCreate);
             m_robots = s_robotSystem.get_robots();
             m_isGameStart = false;
@@ -26,29 +36,10 @@ namespace StateClient
         }
         public void update()
         {
-
-
-
-            //Console.Write(">");
-            //input = Console.ReadLine();
-            //switch (input)
-            //{
-            //    case "start":
-            //        start_game();
-            //        break;
-
-
-
-            //}
-
             //更新每个Robot数据
-            s_networkManager.receive_server_data(m_robots);
-            if (m_isGameStart)
-                s_logicGameManager.update(m_robots);
+            s_networkManager.receive_server_data(m_robots);          
             //发送每个Robot新的操作数据
-          //  s_networkManager.send_robots_data(m_robots);
-
-
+            s_networkManager.send_robots_data(m_robots);       
 
         }
 
@@ -59,6 +50,11 @@ namespace StateClient
             m_isGameStart = true;
         }
 
+        void sandbox_update(object obj, ElapsedEventArgs e)
+        {
+            List<Robot> robots = s_robotSystem.get_robots();
+            s_logicGameManager.update(robots);
 
+        }
     }
 }

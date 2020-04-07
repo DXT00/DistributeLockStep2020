@@ -60,6 +60,7 @@ namespace StateServer.Network
         public void receive_robots_data()
         {
             List<Robot> robots = RobotSystem.get_singleton().get_robots();
+            bool start_flag = false;
             foreach(Robot robot in robots)
             {
                 if (robot == null) continue;//断开连接时会使得robot = null
@@ -69,7 +70,7 @@ namespace StateServer.Network
                     if (msg.MsgType == Type.StartGame)
                     {
                         Log.INFO("receivesd START msg from client {0}", robot.m_socketId);
-                        GameServer.s_isGameStart = true;
+                        start_flag = true;
                     }
                     else if (msg.MsgType == Type.RobotsData)
                     {
@@ -85,6 +86,14 @@ namespace StateServer.Network
                    
                 }
             }
+
+            if (start_flag)
+            {
+                send_robots_data();//返回socketId到clients
+                GameServer.s_isGameStart = true;
+
+            }
+
         }
         //发送处理完的所有的robot的信息
         public void send_robots_data()
