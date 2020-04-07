@@ -10,6 +10,7 @@ namespace StateServer.RobotsSystem
         static private RobotSystem s_singleton = null;
         private static readonly object locker = new object();
         private static readonly object removeRobotLocker = new object();
+        private static readonly object addRobotLocker = new object();
 
         private List<Robot> m_robots;//断开连接的robot不会删除，只会置为null! 通过socketId来取m_robots
         private Dictionary<Socket,int> m_socketToRobotMap;//socket to socketId
@@ -23,17 +24,21 @@ namespace StateServer.RobotsSystem
         }
         public void generate_robot(Socket clientSocket)
         {
-            Position initPos = generate_init_position();
-            Robot robot = new Robot(m_socketId, clientSocket, initPos);
-            m_robots.Add(robot);
-            m_socketToRobotMap.Add(clientSocket, m_socketId);
-            m_socketId++;
-            m_numrobots++;
-            //返回给client sockectId
-            NetworkMsg connectedMsg = new NetworkMsg();
-            connectedMsg.MsgType = Type.ConnectedId;
-            connectedMsg.SocketId = robot.m_socketId;
-            robot.m_clientSocket.dump_send_queue(connectedMsg);
+            lock (addRobotLocker)
+            {
+                Position initPos = generate_init_position();
+                Robot robot = new Robot(m_socketId, clientSocket, initPos);
+                m_robots.Add(robot);
+                m_socketToRobotMap.Add(clientSocket, m_socketId);
+                m_socketId++;
+                m_numrobots++;
+                //返回给client sockectId
+                NetworkMsg connectedMsg = new NetworkMsg();
+                connectedMsg.MsgType = Type.ConnectedId;
+                connectedMsg.SocketId = robot.m_socketId;
+                robot.m_clientSocket.dump_send_queue(connectedMsg);
+            }
+            
 
         }
         private Position generate_init_position()

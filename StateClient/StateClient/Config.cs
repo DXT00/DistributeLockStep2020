@@ -6,7 +6,7 @@ namespace StateClient
 {
     public sealed class Config
     {
-        public const int numRobotsMax = 10;
+        public const int numRobotsMax = 100;
         public const int numRobotsCreate = 5;
 
         public const int sendBufferSize = 1024;

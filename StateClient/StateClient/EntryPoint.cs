@@ -6,7 +6,7 @@ namespace StateClient
     class EntryPoint
     {
         static SandBox application = new SandBox();
-        double fps = Config.fps;//60 frame/s
+        double fps = Config.fps;//30 frame/s
 
         static void Main(string[] args)
         {
@@ -14,12 +14,7 @@ namespace StateClient
             string input;
 
             application.init();
-            //set time here..
-            //Timer timer = new Timer();
-            //timer.Enabled = true;
-            //timer.Interval = 1.0 / fps * 1000;
-            //timer.Start();
-            //timer.Elapsed += new ElapsedEventHandler(sandbox_update);
+           
             Console.Write(">");
             input = Console.ReadLine();
 
@@ -36,8 +31,6 @@ namespace StateClient
 
             }
         }
-        //static void sandbox_update(object obj, ElapsedEventArgs e)
-        //{
-        //}
+       
     }
 }

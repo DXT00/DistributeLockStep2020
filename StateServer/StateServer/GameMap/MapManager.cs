@@ -2,7 +2,6 @@
 using StateServer.RobotsSystem;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace StateServer.GameMap
 {
@@ -120,7 +119,6 @@ namespace StateServer.GameMap
                     nearbyRobotData.ClientInfo.RobotSocketId = nearbyRobotId;
                     nearbyRobotData.Position = robots[nearbyRobotId].m_mapComponent.m_pos;
                     robotDataMsg.RobotData.Add(nearbyRobotData);
-                    // robot.m_clientSocket.dump_send_queue(nearbyRobotMsg);
                 }
                 
             }
@@ -142,6 +140,20 @@ namespace StateServer.GameMap
             uint y = pos.Y / m_singleAreaSize;
             uint areaId = x + m_areaAcount * y;
             return (int)areaId;
+        }
+
+        public void show_map_areas_info()
+        {
+            foreach(Area area in m_areasMap)
+            {
+                string info = $"area { area.get_areaId()} robotList:";
+                foreach(int robotId in area.get_robotsIdList())
+                {
+                    info += robotId.ToString() + ",";
+                }
+                info += "total number:" + area.get_robotsIdList().Count.ToString();
+                Log.INFO(info);
+            }
         }
     }
 }

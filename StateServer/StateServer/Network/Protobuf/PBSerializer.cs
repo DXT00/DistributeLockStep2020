@@ -6,20 +6,6 @@ namespace StateServer.Network.Protobuf
 {
     public class PBSerializer
     {
-        //public static Byte[] serialize<T>(T obj)
-        //{
-        //    using (MemoryStream stream = new MemoryStream())
-        //    {
-        //        Serializer.Serialize(stream, obj);
-        //        return stream.ToArray();
-        //    }
-        //}
-        //public static NetworkMsg deserialize(byte[] bytes)
-        //{
-        //    MemoryStream stream = new MemoryStream(bytes);
-
-        //    return Serializer.Deserialize<NetworkMsg>(stream);
-        //}
         public static byte[] serialize<T>(T obj) where T : IMessage
         {
             byte[] data = obj.ToByteArray();

@@ -27,7 +27,7 @@ namespace StateClient.Network.Socket
 
     }
     public class ClientSocket
-    {      
+    {
         static private readonly object s_locker = new object();
         public int m_socketId;// socket id to server
         IPEndPoint m_hostIpEndPort;
@@ -51,9 +51,9 @@ namespace StateClient.Network.Socket
         int m_receiveBufferSize;
 
 
-        public ClientSocket( string hostIp, int hostPort)
+        public ClientSocket(string hostIp, int hostPort)
         {
-           // m_robotId = id;
+            // m_robotId = id;
             m_socketId = -1;//初始化为-1，connect再时从server获取
             m_hostIpEndPort = new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
             m_socket = new System.Net.Sockets.Socket(m_hostIpEndPort.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -104,7 +104,7 @@ namespace StateClient.Network.Socket
         private void handler_connect(object sender, SocketAsyncEventArgs e)
         {
             m_autoConnectSignal.Set();
-           // Log.INFO("robotId {0} has connected to server {1}!", m_robotId, m_hostIpEndPort.ToString());
+            // Log.INFO("robotId {0} has connected to server {1}!", m_robotId, m_hostIpEndPort.ToString());
         }
         private void handler_send(object sender, SocketAsyncEventArgs e)
         {
@@ -123,11 +123,11 @@ namespace StateClient.Network.Socket
         {
             lock (s_locker)
             {
-                if (e.SocketError == SocketError.Success && e.BytesTransferred>0)
+                if (e.SocketError == SocketError.Success && e.BytesTransferred > 0)
                 {
                     AsyncUserToken token = e.UserToken as AsyncUserToken;
 
-                
+
                     System.Net.Sockets.Socket socket = token.Socket;
 
 
@@ -166,9 +166,9 @@ namespace StateClient.Network.Socket
                     //继续接收
                     if (!socket.ReceiveAsync(e))
                         process_receive(e);
-                        
 
-                   // }
+
+                    // }
 
                 }
                 else
@@ -183,22 +183,29 @@ namespace StateClient.Network.Socket
 
         public void send_queue_data()
         {
-            while (m_sendQueue.Count > 0)
+            try
             {
-                NetworkMsg msg = m_sendQueue.Dequeue();
-                byte[] data = PBSerializer.serialize(msg);
-                byte[] length = new byte[4];
-                length = BitConverter.GetBytes(data.Length);
+                while (m_sendQueue.Count > 0)
+                {
+                    NetworkMsg msg = m_sendQueue.Dequeue();
+                    byte[] data = PBSerializer.serialize(msg);
+                    byte[] length = new byte[4];
+                    length = BitConverter.GetBytes(data.Length);
 
-                byte[] packedData = new byte[4 + data.Length];
-                Buffer.BlockCopy(length, 0, packedData, 0, 4);
-                Buffer.BlockCopy(data, 0, packedData, 4, data.Length);
-                m_sendEventArg.SetBuffer(packedData, 0, packedData.Length);
-                m_socket.SendAsync(m_sendEventArg);
-                Log.INFO("client socketId {0} send sucess!", m_socketId);
+                    byte[] packedData = new byte[4 + data.Length];
+                    Buffer.BlockCopy(length, 0, packedData, 0, 4);
+                    Buffer.BlockCopy(data, 0, packedData, 4, data.Length);
+                    m_sendEventArg.SetBuffer(packedData, 0, packedData.Length);
+                    m_socket.SendAsync(m_sendEventArg);
+                    Log.INFO("client socketId {0} send sucess!", m_socketId);
 
+                }
             }
-
+            catch
+            {
+              //  close_socket();
+                Log.INFO("The connection to the server is broken!");
+            }
             //bool willRaiseEvent = m_socket.ReceiveAsync(m_receiveEventArg);
             //if (!willRaiseEvent)
             //{
@@ -216,16 +223,30 @@ namespace StateClient.Network.Socket
 
         public void close_socket()
         {
+            m_isConnected = false;
+            if (m_socket == null)
+                return;
+            if (!m_socket.Connected)
+                return;
+
             try
-            {
+            {              
                 m_socket.Shutdown(SocketShutdown.Both);
             }
-            catch (Exception exp)
+            catch
             {
-                Log.ERROR("client socketId {0} close socket error, message: {1}", m_socketId, exp.Message);
+                //Log.ERROR("client socketId {0} close socket error, message: {1}", m_socketId, exp.Message);
             }
-            m_socket.Close();
-            Log.INFO("client socketId {0} has been disconnected from the server", m_socketId);
+            try
+            {
+                m_socket.Close();
+                Log.INFO("client socketId {0} has been disconnected from the server", m_socketId);
+            }
+            catch
+            {
+
+            }
+           
 
         }
 

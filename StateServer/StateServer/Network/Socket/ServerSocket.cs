@@ -36,7 +36,7 @@ namespace StateServer.Network.Socket
     }
     public class ServerSocket
     {
-        private static Mutex m_mutex = new Mutex();
+        //private static Mutex m_mutex = new Mutex();
 
         RobotSystem m_robotSystem = RobotSystem.get_singleton();
 
@@ -112,7 +112,7 @@ namespace StateServer.Network.Socket
             // start the server with a listen backlog of 100 connections
             m_listenSocket.Listen(100);
             start_accept(null);
-            m_mutex.WaitOne();
+            //m_mutex.WaitOne();
 
 
 
@@ -172,7 +172,7 @@ namespace StateServer.Network.Socket
             }
             catch (Exception exp)
             {
-                Log.ERROR("Accept client {0} error, message: {1}", e.AcceptSocket, exp.Message);
+                Log.INFO("Accept client {0} error, message: {1}", e.AcceptSocket, exp.Message);
             }
         }
 
@@ -199,15 +199,15 @@ namespace StateServer.Network.Socket
             }
             catch (SocketException ex)
             {
-                Log.ERROR("Error when processing data received from {0}:\r\n{1}", e.AcceptSocket.RemoteEndPoint, ex.ToString());
+                Log.INFO("Error when processing data received from {0}:\r\n{1}", e.AcceptSocket.RemoteEndPoint, ex.ToString());
             }
             catch (Exception ex)
             {
-                Log.ERROR(ex.ToString());
+                Log.INFO(ex.ToString());
             }
             start_accept(e);
         }
-        /// 接收到客户端的数据事件 
+        //接收到客户端的数据事件 
         private void process_receive(SocketAsyncEventArgs e)
         {
             // check if the remote host closed the connection
@@ -222,9 +222,6 @@ namespace StateServer.Network.Socket
                 //放入对应的robot的queue中
                 int socketId = m_robotSystem.get_socketToRobotMap()[socket];
                 Robot robot = m_robotSystem.get_robots()[socketId];
-
-
-
 
                 byte[] data = new byte[e.BytesTransferred];
                 Array.Copy(e.Buffer, e.Offset, data, 0, data.Length);
@@ -257,35 +254,15 @@ namespace StateServer.Network.Socket
                 } while (token.Buffer.Count > 4);
 
 
-                Log.INFO(" receive from client endPort:{0}", socket.RemoteEndPoint.ToString());
                 Interlocked.Add(ref m_totalBytesRead, e.BytesTransferred);
-                Log.INFO("The server has read a total of {0} bytes", m_totalBytesRead);
 
-                //int packedDataOffset = 0;
-
-                //while (packedDataOffset < e.BytesTransferred)
-                //{
-                //    byte[] lengthData = new byte[4];
-                //    Array.Copy(packedData, packedDataOffset, lengthData, 0, 4);
-                //    packedDataOffset += 4;
-                //    int length = BitConverter.ToInt32(lengthData, 0);
-
-                //    byte[] msgData = new byte[length];
-                //    Array.Copy(packedData, packedDataOffset, msgData, 0, msgData.Length);
-                //    //放入对应的robot的queue中
-                //    NetworkMsg netMsg = PBSerializer.deserialize<NetworkMsg>(msgData);
-                //    robot.m_clientSocket.dump_receive_queue(netMsg);
-                //    packedDataOffset += msgData.Length;
-                //}
-
-
-
-
+              
                 if (!socket.ReceiveAsync(e))
                 {
                     process_receive(e);
                 }
 
+             
 
             }
             else
@@ -309,6 +286,7 @@ namespace StateServer.Network.Socket
             }
 
         }
+        //客户端连接掉线
         private void close_clientSocket(SocketAsyncEventArgs e)
         {
             AsyncUserToken token = e.UserToken as AsyncUserToken;
@@ -332,15 +310,40 @@ namespace StateServer.Network.Socket
             m_numAcceptedClientsMax.Release();
             Log.INFO("A client has been disconnected from the server. There are {0} clients connected to the server", m_numConnectedSocket);
         }
-
+        //服务器主动关闭
         public void stop()
         {
+            List<Robot> robots = m_robotSystem.get_robots();
+            foreach (Robot robot in robots)
+            {
+                if (robot == null) return;
+                if (robot.m_clientSocket.m_socket == null)
+                    continue;
+
+                if (!robot.m_clientSocket.m_socket.Connected)
+                    continue;
+                try
+                {
+                    robot.m_clientSocket.m_socket.Shutdown(SocketShutdown.Both);
+                }
+                catch
+                {
+                }
+            }
+
             try
             {
                 m_listenSocket.Close();
             }
-            catch { }
-            m_mutex.ReleaseMutex();
+            catch {
+                Log.INFO("m_listenSocket close failed");
+            }
+            //m_mutex.ReleaseMutex();
+        }
+
+        public int get_totalByteRead()
+        {
+            return m_totalBytesRead;
         }
     }
 }

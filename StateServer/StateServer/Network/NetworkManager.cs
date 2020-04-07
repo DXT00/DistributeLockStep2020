@@ -60,6 +60,7 @@ namespace StateServer.Network
         public void receive_robots_data()
         {
             List<Robot> robots = RobotSystem.get_singleton().get_robots();
+            
             bool start_flag = false;
             foreach(Robot robot in robots)
             {
@@ -114,6 +115,10 @@ namespace StateServer.Network
             
         }
 
+        public int get_totalByteRead()
+        {
+            return m_tcpServer.get_totalByteRead();
+        }
     }
 
     

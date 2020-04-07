@@ -36,14 +36,14 @@ namespace StateServer.LogicGame
         public void run()
         {
             s_mapManager.update();
-            
+            s_mapManager.show_map_areas_info();
             m_frameNum++;
 
-            if(m_frameNum == Config.totalFrameNum)
-            {
-                GameServer.get_singleton().stop();
-            }
+           
         }
-
+        public int get_frameNum()
+        {
+            return m_frameNum;
+        }
     }
 }

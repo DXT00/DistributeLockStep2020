@@ -32,5 +32,9 @@ namespace StateServer.GameMap
         {
             return m_robotsIdList;
         }
+        public int get_areaId()
+        {
+            return m_areaId;
+        }
     }
 }
